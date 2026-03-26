@@ -19,6 +19,7 @@ function navigate(viewName) {
     bottlenecks: loadBottlenecks,
     issues:      loadIssues,
     ai:          loadAI,
+    upload:      loadUpload,
   };
   loaders[viewName]?.();
 }

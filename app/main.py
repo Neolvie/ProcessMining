@@ -3,15 +3,20 @@ FastAPI backend for Process Mining — Directum RX.
 Parses logs at startup, builds DuckDB, serves REST API + static frontend.
 """
 
+import asyncio
+import io
 import json
 import logging
 import os
 import time
+import zipfile
+import tarfile
+import gzip
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -70,7 +75,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Process Mining – Directum RX", lifespan=lifespan)
 
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"],
+    CORSMiddleware, allow_origins=["*"],
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["*"],
 )
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -87,6 +94,21 @@ def _ready():
         raise HTTPException(503, "Data is still loading…")
 
 
+def _rebuild_sync():
+    """Synchronous full re-parse + DB rebuild. Run in thread executor."""
+    process_names = meta_loader.load_process_names(METADATA_DIR)
+    t1 = time.time()
+    events, parse_meta = log_parser.parse_logs(LOGS_DIR)
+    _startup["parse_seconds"] = round(time.time() - t1, 1)
+    _startup["meta"] = parse_meta
+    logger.info(f"Rebuilt: {parse_meta['parsed_events']} events in {_startup['parse_seconds']}s")
+    t2 = time.time()
+    db.build_db(events, process_names)
+    _startup["build_seconds"] = round(time.time() - t2, 1)
+    _startup["status"] = "ready"
+    _startup["ready_at"] = time.time()
+
+
 # ── Status ────────────────────────────────────────────────────────────────────
 @app.get("/api/status")
 async def api_status():
@@ -96,6 +118,113 @@ async def api_status():
     info["ai_enabled"] = ai.is_enabled()
     info["ai_model"]   = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini") if ai.is_enabled() else None
     return info
+
+
+# ── Log file management ───────────────────────────────────────────────────────
+@app.get("/api/logs")
+async def api_list_logs():
+    """List log files currently in LOGS_DIR."""
+    logs_path = Path(LOGS_DIR)
+    if not logs_path.exists():
+        return []
+    files = []
+    for f in sorted(logs_path.iterdir()):
+        if f.is_file():
+            stat = f.stat()
+            files.append({
+                "name": f.name,
+                "size_bytes": stat.st_size,
+                "size_mb": round(stat.st_size / 1024 / 1024, 2),
+                "modified": round(stat.st_mtime),
+            })
+    return files
+
+
+@app.post("/api/upload")
+async def api_upload(files: list[UploadFile] = File(...)):
+    """
+    Upload log files (.log, .gz, .zip, .tar.gz) and rebuild the analytics DB.
+    ZIP archives are extracted; only .log files inside are kept.
+    """
+    logs_path = Path(LOGS_DIR)
+    logs_path.mkdir(parents=True, exist_ok=True)
+
+    saved, errors = [], []
+
+    for upload in files:
+        raw_name = Path(upload.filename or "upload.log").name
+        content = await upload.read()
+        low = raw_name.lower()
+
+        try:
+            if low.endswith(".zip"):
+                with zipfile.ZipFile(io.BytesIO(content)) as zf:
+                    for member in zf.namelist():
+                        mname = Path(member).name
+                        if not mname or mname.startswith("."):
+                            continue
+                        if mname.lower().endswith((".log", ".log.gz")):
+                            data = zf.read(member)
+                            (logs_path / mname).write_bytes(data)
+                            saved.append(mname)
+
+            elif low.endswith((".tar.gz", ".tgz")):
+                with tarfile.open(fileobj=io.BytesIO(content)) as tf:
+                    for member in tf.getmembers():
+                        mname = Path(member.name).name
+                        if not mname or not mname.lower().endswith(".log"):
+                            continue
+                        fobj = tf.extractfile(member)
+                        if fobj:
+                            (logs_path / mname).write_bytes(fobj.read())
+                            saved.append(mname)
+
+            elif low.endswith(".gz"):
+                # single gzipped log: strip .gz suffix
+                dest_name = raw_name[:-3] if raw_name.endswith(".gz") else raw_name + ".log"
+                (logs_path / dest_name).write_bytes(gzip.decompress(content))
+                saved.append(dest_name)
+
+            else:
+                (logs_path / raw_name).write_bytes(content)
+                saved.append(raw_name)
+
+        except Exception as exc:
+            errors.append(f"{raw_name}: {exc}")
+            logger.warning(f"Upload error for {raw_name}: {exc}")
+
+    if not saved:
+        raise HTTPException(400, f"No valid log files extracted. Errors: {errors}")
+
+    _startup["status"] = "reloading"
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _rebuild_sync)
+
+    return {
+        "saved": saved,
+        "errors": errors,
+        "parsed_events": _startup["meta"].get("parsed_events", 0),
+        "total_files": len(_startup["meta"].get("files", [])),
+        "parse_seconds": _startup["parse_seconds"],
+    }
+
+
+@app.delete("/api/logs/{filename}")
+async def api_delete_log(filename: str):
+    """Delete a log file and rebuild the DB."""
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(400, "Invalid filename")
+    filepath = Path(LOGS_DIR) / filename
+    if not filepath.exists():
+        raise HTTPException(404, "File not found")
+    filepath.unlink()
+    logger.info(f"Deleted log file: {filename}")
+
+    _startup["status"] = "reloading"
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _rebuild_sync)
+
+    return {"deleted": filename, "parsed_events": _startup["meta"].get("parsed_events", 0)}
 
 
 # ── Core analytics ─────────────────────────────────────────────────────────────
