@@ -30,8 +30,7 @@ function renderProcessTable(search = '') {
 
   buildTable('proc-table', [
     { key: 'display_name', label: 'Процесс',
-      render: (v, r) => `<span style="cursor:pointer;color:var(--blue)"
-        onclick="openProcessModalById('${r.process_id}','${(v || '').replace(/'/g, "\\'")}')">
+      render: (v, r) => `<span class="proc-link" data-pid="${r.process_id}" style="cursor:pointer;color:var(--blue)">
         <strong>${v || r.name || r.process_id}</strong></span>` },
     { key: 'total',               label: 'Экз-ры',       render: v => fmtNum(v) },
     { key: 'completed',           label: 'Завершено',     render: v => fmtNum(v) },

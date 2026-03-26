@@ -9,7 +9,7 @@ function fmtNum(n, decimals = 0) {
 }
 
 function fmtDur(hours) {
-  if (hours == null || hours === 0) return '—';
+  if (hours == null) return '—';
   if (hours < 1/60) return '<1 мин';
   if (hours < 1)    return Math.round(hours * 60) + ' мин';
   const h = Math.floor(hours);

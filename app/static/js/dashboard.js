@@ -124,8 +124,7 @@ async function loadDashboard() {
   // Top processes table
   buildTable('dash-top-proc', [
     { key: 'display_name', label: 'Процесс',
-      render: (v, r) => `<span style="cursor:pointer;color:var(--blue)"
-        onclick="openProcessModalById('${r.process_id}','${(v || '').replace(/'/g, "\\'")}')">
+      render: (v, r) => `<span class="proc-link" data-pid="${r.process_id}" style="cursor:pointer;color:var(--blue)">
         <strong>${v || r.name || r.process_id}</strong></span>` },
     { key: 'total',           label: 'Экз-ры',      render: v => fmtNum(v) },
     { key: 'completion_rate', label: '% завершения',

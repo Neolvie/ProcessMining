@@ -1,7 +1,11 @@
 'use strict';
 
 function openProcessModal(row) {
-  openProcessModalById(row.dataset.processId, row.dataset.displayName);
+  // data-process_id → dataset['process_id'] (underscore, not camelCase)
+  const processId = row.dataset['process_id'] || row.dataset.processId;
+  const proc = state.processesData.find(p => p.process_id === processId);
+  const displayName = proc?.display_name || proc?.name || processId;
+  openProcessModalById(processId, displayName);
 }
 
 async function openProcessModalById(processId, displayName) {

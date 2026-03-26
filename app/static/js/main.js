@@ -64,5 +64,15 @@ async function pollStatus() {
   }
 }
 
+// ── Delegated click: .proc-link → открыть модал процесса ─────────────────
+document.addEventListener('click', e => {
+  const link = e.target.closest('.proc-link');
+  if (!link) return;
+  const pid = link.dataset.pid;
+  if (!pid) return;
+  const proc = state.processesData.find(p => p.process_id === pid);
+  openProcessModalById(pid, proc?.display_name || proc?.name || pid);
+});
+
 // ── Init ──────────────────────────────────────────────────────────────────
 pollStatus();
