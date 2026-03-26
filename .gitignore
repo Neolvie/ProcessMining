@@ -1,0 +1,17 @@
+# Data directories (not committed)
+logs/
+metadata/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/

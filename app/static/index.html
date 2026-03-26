@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Process Mining — Directum RX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset ──────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Directum Design Tokens ─────────────────────────────────────────── */
+    :root {
+      /* Brand */
+      --orange:       #FF7A00;
+      --orange-btn:   #FF8F35;
+      --orange-light: #FFF3E4;
+      --orange-mid:   #FFE4C8;
+      --blue:         #3C65CC;
+      --blue-light:   #EEF2FF;
+      --navy:         #000E20;
+      --title:        #05184A;
+
+      /* Surfaces */
+      --bg:        #F4F4F4;
+      --surface:   #FFFFFF;
+      --surface2:  #F8F8F8;
+      --border:    #E0E0E0;
+      --border-md: #CCCCCC;
+
+      /* Text */
+      --text:      #000E20;
+      --text-med:  #3A3A4A;
+      --muted:     #625F6A;
+      --subtle:    #9C9BA8;
+
+      /* Status */
+      --green:       #3AC436;
+      --green-light: #E8F9E8;
+      --red:         #D32F2F;
+      --red-light:   #FDECEA;
+      --amber:       #F5A623;
+      --amber-light: #FFF8E1;
+      --purple:      #8442A6;
+      --teal:        #0097A7;
+
+      /* Shadow */
+      --shadow-sm: 0 1px 3px rgba(1,12,28,.07);
+      --shadow-md: 0 4px 12px rgba(1,12,28,.08);
+      --shadow-hover: 0 8px 24px rgba(1,12,28,.1);
+
+      /* Layout */
+      --sidebar-w: 224px;
+      --header-h:  56px;
+      --radius:    10px;
+      --radius-sm: 6px;
+
+      /* Transitions */
+      --tr: all .2s ease;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    #header {
+      position: fixed; top:0; left:0; right:0; z-index:200;
+      height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      display: flex; align-items: center;
+    }
+    .header-brand {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 20px;
+      border-right: 1px solid var(--border);
+      height: 100%;
+    }
+    .header-brand img { height: 26px; }
+    .header-brand .divider {
+      width: 1px; height: 20px; background: var(--border); margin: 0 4px;
+    }
+    .header-brand .product-name {
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      white-space: nowrap;
+    }
+    .header-right {
+      flex: 1; display: flex; align-items: center; gap: 16px;
+      padding: 0 20px;
+    }
+    #status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); flex-shrink: 0;
+      animation: pulse 2s infinite;
+    }
+    #status-dot.loading { background: var(--amber); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    #status-text { font-size: 12px; color: var(--muted); }
+    .hdr-pill {
+      background: var(--orange-light); border: 1px solid var(--orange-mid);
+      border-radius: 20px; padding: 3px 12px;
+      font-size: 12px; font-weight: 500; color: var(--orange);
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────────── */
+    #sidebar {
+      position: fixed; top: var(--header-h); left:0; bottom:0; z-index:100;
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      display: flex; flex-direction: column;
+    }
+    .nav-group { padding: 16px 12px 4px; }
+    .nav-group-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--subtle); padding: 0 10px; margin-bottom: 4px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 9px 12px; border-radius: var(--radius-sm); cursor: pointer;
+      color: var(--muted); font-size: 13px; font-weight: 500;
+      transition: var(--tr); user-select: none;
+      border-left: 2px solid transparent;
+    }
+    .nav-item:hover { background: var(--bg); color: var(--text); }
+    .nav-item.active {
+      background: var(--orange-light);
+      color: var(--orange);
+      border-left-color: var(--orange);
+      font-weight: 600;
+    }
+    .nav-item.active svg { color: var(--orange); }
+    .nav-item svg { flex-shrink:0; opacity:.7; }
+    .nav-item.active svg { opacity:1; }
+    .nav-badge {
+      margin-left: auto;
+      background: var(--orange); color: #fff;
+      border-radius: 10px; padding: 1px 6px;
+      font-size: 10px; font-weight: 700;
+    }
+
+    /* ── Main ────────────────────────────────────────────────────────────── */
+    #main {
+      margin-left: var(--sidebar-w);
+      margin-top: var(--header-h);
+      padding: 24px;
+      min-height: calc(100vh - var(--header-h));
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Page title ──────────────────────────────────────────────────────── */
+    .page-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px;
+    }
+    .page-title { font-size: 20px; font-weight: 700; color: var(--title); }
+    .page-badge {
+      background: var(--orange-light); border: 1px solid var(--orange-mid);
+      border-radius: 20px; padding: 3px 12px;
+      font-size: 12px; font-weight: 600; color: var(--orange);
+    }
+
+    /* ── Cards ───────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .card-title {
+      font-size: 12px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .07em;
+      margin-bottom: 14px;
+    }
+    .card:hover { box-shadow: var(--shadow-md); transition: box-shadow .2s; }
+
+    /* ── KPI grid ────────────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+      transition: var(--tr);
+    }
+    .kpi:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+    .kpi-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+    }
+    .kpi-label  { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .kpi-value  { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+    .kpi-sub    { font-size: 12px; color: var(--subtle); margin-top: 4px; }
+    .kpi-trend  { font-size: 12px; margin-top: 4px; font-weight: 500; }
+    .kpi-trend.up   { color: var(--green); }
+    .kpi-trend.down { color: var(--red); }
+
+    /* KPI accent styles */
+    .kpi.orange { border-top: 3px solid var(--orange); }
+    .kpi.green  { border-top: 3px solid var(--green); }
+    .kpi.red    { border-top: 3px solid var(--red); }
+    .kpi.blue   { border-top: 3px solid var(--blue); }
+    .kpi.amber  { border-top: 3px solid var(--amber); }
+    .kpi.purple { border-top: 3px solid var(--purple); }
+
+    .kpi.orange .kpi-value { color: var(--orange); }
+    .kpi.green  .kpi-value { color: var(--green); }
+    .kpi.red    .kpi-value { color: var(--red); }
+    .kpi.blue   .kpi-value { color: var(--blue); }
+    .kpi.amber  .kpi-value { color: var(--amber); }
+
+    /* ── Grids ───────────────────────────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .grid-2-3 { display: grid; grid-template-columns: 2fr 3fr; gap: 16px; margin-bottom: 20px; }
+    @media (max-width: 1200px) { .grid-2,.grid-2-3 { grid-template-columns: 1fr; } }
+    @media (max-width: 1400px) { .grid-3 { grid-template-columns: 1fr 1fr; } }
+    .mb16 { margin-bottom: 16px; }
+    .mb20 { margin-bottom: 20px; }
+
+    /* ── Charts ──────────────────────────────────────────────────────────── */
+    .chart-wrap { position: relative; height: 280px; }
+    .chart-wrap.tall  { height: 360px; }
+    .chart-wrap.short { height: 200px; }
+    .chart-wrap.heatmap { height: 220px; }
+
+    /* ── Heatmap ─────────────────────────────────────────────────────────── */
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: 40px repeat(24, 1fr);
+      gap: 2px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .heatmap-cell {
+      height: 22px; border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .heatmap-label { display: flex; align-items: center; font-size: 11px; color: var(--muted); }
+
+    /* ── Tables ──────────────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      text-align: left; padding: 10px 14px;
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .06em;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap; cursor: pointer; user-select: none;
+      background: var(--bg);
+    }
+    thead th:hover { color: var(--text); }
+    thead th.sort-asc::after  { content: ' ↑'; color: var(--orange); }
+    thead th.sort-desc::after { content: ' ↓'; color: var(--orange); }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--bg); }
+    tbody td { padding: 10px 14px; }
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover td:first-child { color: var(--orange); }
+
+    /* ── Badges ──────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block; border-radius: 4px; padding: 2px 8px;
+      font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .badge-green  { background: var(--green-light);  color: #1B5E20; }
+    .badge-red    { background: var(--red-light);    color: var(--red); }
+    .badge-amber  { background: var(--amber-light);  color: #7B4A00; }
+    .badge-orange { background: var(--orange-light); color: var(--orange); }
+    .badge-blue   { background: var(--blue-light);   color: var(--blue); }
+    .badge-muted  { background: var(--bg);           color: var(--muted); border: 1px solid var(--border); }
+
+    /* ── Progress bars ───────────────────────────────────────────────────── */
+    .bar-track {
+      background: var(--bg); border-radius: 3px; height: 5px;
+      overflow: hidden; margin-top: 3px; min-width: 60px;
+    }
+    .bar-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+    .bar-orange { background: var(--orange); }
+    .bar-green  { background: var(--green); }
+    .bar-red    { background: var(--red); }
+    .bar-blue   { background: var(--blue); }
+    .bar-amber  { background: var(--amber); }
+
+    /* ── Efficiency score ────────────────────────────────────────────────── */
+    .score-ring {
+      position: relative; display: inline-flex;
+      align-items: center; justify-content: center;
+    }
+    .score-text {
+      position: absolute; font-size: 11px; font-weight: 700;
+    }
+
+    /* ── Filter bar ──────────────────────────────────────────────────────── */
+    .filter-bar {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .filter-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .filter-bar select, .filter-bar input[type=text] {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      padding: 7px 11px; font-size: 13px; outline: none;
+      transition: border-color .15s;
+    }
+    .filter-bar select:focus, .filter-bar input:focus { border-color: var(--orange); }
+    .btn {
+      background: var(--orange-btn); color: #fff; border: none;
+      border-radius: var(--radius-sm); padding: 7px 16px; cursor: pointer;
+      font-size: 13px; font-weight: 600; transition: var(--tr);
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn:hover { background: var(--orange); }
+    .btn-ghost {
+      background: var(--surface); color: var(--muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 7px 14px; cursor: pointer; font-size: 13px;
+      display: inline-flex; align-items: center; gap: 6px;
+      transition: var(--tr);
+    }
+    .btn-ghost:hover { border-color: var(--orange); color: var(--orange); background: var(--orange-light); }
+    .btn-blue { background: var(--blue); color: #fff; }
+    .btn-blue:hover { background: #2d50b0; }
+    .search-input {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); padding: 7px 12px;
+      font-size: 13px; outline: none; width: 280px; transition: border-color .15s;
+    }
+    .search-input:focus { border-color: var(--orange); }
+    .search-input::placeholder { color: var(--subtle); }
+
+    /* ── Tabs ────────────────────────────────────────────────────────────── */
+    .tabs {
+      display: flex; gap: 0; border-bottom: 2px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .tab {
+      padding: 9px 18px; cursor: pointer; color: var(--muted);
+      font-weight: 500; font-size: 13px;
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      transition: var(--tr);
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--orange); border-bottom-color: var(--orange); font-weight: 600; }
+
+    /* ── Loading ─────────────────────────────────────────────────────────── */
+    .loading-block {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 48px; gap: 12px; color: var(--muted);
+    }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border);
+      border-top-color: var(--orange); border-radius: 50%;
+      animation: spin .65s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty state ─────────────────────────────────────────────────────── */
+    .empty {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 40px 20px; gap: 8px; color: var(--subtle);
+    }
+    .empty svg { opacity: .4; }
+
+    /* ── Modal ───────────────────────────────────────────────────────────── */
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,14,32,.45);
+      align-items: center; justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 28px; min-width: 680px;
+      max-width: 92vw; max-height: 88vh; overflow-y: auto;
+      position: relative; box-shadow: 0 24px 48px rgba(1,12,28,.18);
+    }
+    .modal-close {
+      position: absolute; top: 18px; right: 18px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--muted);
+      cursor: pointer; font-size: 18px; line-height: 1;
+      width: 32px; height: 32px; display: flex; align-items: center;
+      justify-content: center; transition: var(--tr);
+    }
+    .modal-close:hover { color: var(--text); border-color: var(--border-md); }
+    .modal-title { font-size: 17px; font-weight: 700; color: var(--title); margin-bottom: 18px; }
+
+    /* ── AI panel ────────────────────────────────────────────────────────── */
+    .ai-card {
+      background: linear-gradient(135deg, #fff 0%, #FFF8F3 100%);
+      border: 1px solid var(--orange-mid);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .ai-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    }
+    .ai-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: var(--orange-light); display: flex; align-items: center;
+      justify-content: center; font-size: 18px;
+    }
+    .ai-title { font-size: 15px; font-weight: 700; color: var(--title); }
+    .ai-subtitle { font-size: 12px; color: var(--muted); }
+    #ai-output {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 16px;
+      font-size: 13px; line-height: 1.7; color: var(--text);
+      min-height: 60px; max-height: 500px; overflow-y: auto;
+      white-space: pre-wrap; word-wrap: break-word;
+    }
+    #ai-output.empty { color: var(--subtle); font-style: italic; }
+    #ai-output h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; color: var(--title); }
+    #ai-output h4:first-child { margin-top: 0; }
+    #ai-output ul { padding-left: 20px; margin: 4px 0; }
+    #ai-output li { margin: 3px 0; }
+    #ai-output strong { font-weight: 700; color: var(--navy); }
+    #ai-output p { margin: 6px 0; }
+    .ai-thinking {
+      display: flex; align-items: center; gap: 8px; color: var(--muted);
+      font-style: italic;
+    }
+    .ai-thinking .spinner { width: 16px; height: 16px; border-width: 2px; }
+
+    /* ── Insight cards ───────────────────────────────────────────────────── */
+    .insight-row {
+      display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .insight-chip {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 12px; color: var(--text-med);
+      box-shadow: var(--shadow-sm);
+      flex: 1; min-width: 180px;
+    }
+    .insight-chip .chip-icon {
+      font-size: 18px; flex-shrink: 0;
+    }
+    .insight-chip strong { font-weight: 700; color: var(--text); }
+    .insight-chip.chip-green { border-left: 3px solid var(--green); background: var(--green-light); }
+    .insight-chip.chip-red   { border-left: 3px solid var(--red);   background: var(--red-light); }
+    .insight-chip.chip-amber { border-left: 3px solid var(--amber); background: var(--amber-light); }
+
+    /* KPI accent aliases */
+    .kpi.accent-orange { border-top: 3px solid var(--orange); }
+    .kpi.accent-green  { border-top: 3px solid var(--green); }
+    .kpi.accent-red    { border-top: 3px solid var(--red); }
+    .kpi.accent-amber  { border-top: 3px solid var(--amber); }
+    .kpi.accent-blue   { border-top: 3px solid var(--blue); }
+    .kpi .kpi-value.green  { color: var(--green); }
+    .kpi .kpi-value.red    { color: var(--red); }
+    .kpi .kpi-value.amber  { color: var(--amber); }
+    .kpi .kpi-value.orange { color: var(--orange); }
+
+    /* ── Scrollbar ───────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    /* ── Counter animation ───────────────────────────────────────────────── */
+    .count-up { display: inline-block; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<header id="header">
+  <div class="header-brand">
+    <img src="https://www.directum.ru/application/images/directum_logo.png"
+         alt="Directum" onerror="this.style.display='none';document.getElementById('fallback-logo').style.display='flex'"/>
+    <div id="fallback-logo" style="display:none;align-items:center;gap:6px;font-weight:800;font-size:15px;color:var(--orange)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+      </svg>DIRECTUM
+    </div>
+    <div class="divider"></div>
+    <span class="product-name">Process Mining</span>
+  </div>
+  <div class="header-right">
+    <span id="status-dot" class="loading"></span>
+    <span id="status-text" style="flex:1">Загрузка данных…</span>
+    <span id="hdr-period" class="hdr-pill" style="display:none"></span>
+  </div>
+</header>
+
+<!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+<nav id="sidebar">
+  <div class="nav-group">
+    <div class="nav-group-label">Мониторинг</div>
+    <div class="nav-item active" data-view="dashboard">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>Дашборд
+    </div>
+    <div class="nav-item" data-view="timeline">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+      </svg>Временная шкала
+    </div>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-label">Анализ</div>
+    <div class="nav-item" data-view="processes">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
+      </svg>Процессы
+    </div>
+    <div class="nav-item" data-view="blocks">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
+      </svg>Блоки / Этапы
+    </div>
+    <div class="nav-item" data-view="flow">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+      </svg>Потоки переходов
+    </div>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-label">Диагностика</div>
+    <div class="nav-item" data-view="bottlenecks">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>Узкие места
+    </div>
+    <div class="nav-item" data-view="issues">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>Проблемы
+      <span class="nav-badge" id="issues-badge" style="display:none">!</span>
+    </div>
+    <div class="nav-item" data-view="ai">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3 3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3 3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/>
+      </svg>AI Анализ
+    </div>
+  </div>
+</nav>
+
+<!-- ── Main ──────────────────────────────────────────────────────────────── -->
+<main id="main">
+
+  <!-- ── Dashboard ─────────────────────────────────────────────────────── -->
+  <div id="view-dashboard" class="view active">
+    <div class="page-header">
+      <div class="page-title">Дашборд</div>
+      <span class="page-badge" id="dash-period"></span>
+    </div>
+
+    <!-- KPI row 1 -->
+    <div id="kpi-row1" class="kpi-grid"></div>
+    <!-- KPI row 2 -->
+    <div id="kpi-row2" class="kpi-grid"></div>
+
+    <!-- Insight chips -->
+    <div id="insight-row" class="insight-row"></div>
+
+    <!-- Charts -->
+    <div class="grid-2 mb20">
+      <div class="card">
+        <div class="card-title">Активность по часам</div>
+        <div class="chart-wrap"><canvas id="chart-hourly"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Тепловая карта активности (день × час)</div>
+        <div id="heatmap-container"></div>
+      </div>
+    </div>
+
+    <div class="grid-2-3 mb20">
+      <div class="card">
+        <div class="card-title">Распределение типов процессов</div>
+        <div class="chart-wrap"><canvas id="chart-pie"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Распределение по длительности (завершённые)</div>
+        <div class="chart-wrap"><canvas id="chart-histogram"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Top processes -->
+    <div class="card">
+      <div class="card-title">Топ процессов — сводка</div>
+      <div class="table-wrap" id="dash-top-proc"></div>
+    </div>
+  </div>
+
+  <!-- ── Timeline ───────────────────────────────────────────────────────── -->
+  <div id="view-timeline" class="view">
+    <div class="page-header"><div class="page-title">Временная шкала</div></div>
+    <div class="filter-bar">
+      <label>Детализация:</label>
+      <select id="tl-gran">
+        <option value="hour">По часам</option>
+        <option value="day">По дням</option>
+      </select>
+      <button class="btn" onclick="loadTimeline()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Обновить
+      </button>
+    </div>
+    <div class="card mb20">
+      <div class="card-title">Процессы: старты / завершения / прерывания</div>
+      <div class="chart-wrap tall"><canvas id="chart-tl-proc"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Блоки и среднее время обработки сообщений (мс)</div>
+      <div class="chart-wrap tall"><canvas id="chart-tl-blocks"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── Processes ──────────────────────────────────────────────────────── -->
+  <div id="view-processes" class="view">
+    <div class="page-header"><div class="page-title">Процессы</div></div>
+    <div class="filter-bar">
+      <input class="search-input" type="text" id="proc-search"
+             placeholder="🔍  Поиск по названию…" oninput="filterProcesses()"/>
+    </div>
+    <div class="card">
+      <div class="table-wrap" id="proc-table"></div>
+    </div>
+  </div>
+
+  <!-- ── Blocks ─────────────────────────────────────────────────────────── -->
+  <div id="view-blocks" class="view">
+    <div class="page-header"><div class="page-title">Блоки / Этапы</div></div>
+    <div class="filter-bar">
+      <label>Процесс:</label>
+      <select id="block-proc-filter" onchange="loadBlocks()">
+        <option value="">Все процессы</option>
+      </select>
+      <label>Сортировать по:</label>
+      <select id="block-sort" onchange="renderBlocksTable()">
+        <option value="avg_duration_sec">Ср. длительности</option>
+        <option value="activations">Кол-ву активаций</option>
+        <option value="abort_rate">% прерываний</option>
+        <option value="p95_duration_sec">P95 длительности</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="table-wrap" id="blocks-table"></div>
+    </div>
+  </div>
+
+  <!-- ── Flow ───────────────────────────────────────────────────────────── -->
+  <div id="view-flow" class="view">
+    <div class="page-header"><div class="page-title">Потоки переходов между блоками</div></div>
+    <div class="filter-bar">
+      <label>Процесс:</label>
+      <select id="flow-proc-filter" onchange="loadFlow()">
+        <option value="">Все процессы</option>
+      </select>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Топ переходов (Directly-Follows Graph)</div>
+        <div class="table-wrap" id="flow-table"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Частота переходов</div>
+        <div class="chart-wrap tall"><canvas id="chart-flow"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Bottlenecks ────────────────────────────────────────────────────── -->
+  <div id="view-bottlenecks" class="view">
+    <div class="page-header"><div class="page-title">Узкие места</div></div>
+    <div class="tabs">
+      <div class="tab active" data-tab="bn-slow-blocks">Медленные блоки</div>
+      <div class="tab" data-tab="bn-slow-proc">Медленные процессы</div>
+      <div class="tab" data-tab="bn-high-abort">Высокий % прерываний</div>
+    </div>
+    <div id="bn-slow-blocks" class="tab-content">
+      <div class="card">
+        <div class="card-title">Блоки с наибольшим средним временем выполнения</div>
+        <div class="chart-wrap tall mb16"><canvas id="chart-slow-blocks"></canvas></div>
+        <div class="table-wrap" id="tbl-slow-blocks"></div>
+      </div>
+    </div>
+    <div id="bn-slow-proc" class="tab-content" style="display:none">
+      <div class="card">
+        <div class="card-title">Типы процессов с наибольшей средней длительностью</div>
+        <div class="chart-wrap mb16"><canvas id="chart-slow-proc"></canvas></div>
+        <div class="table-wrap" id="tbl-slow-proc"></div>
+      </div>
+    </div>
+    <div id="bn-high-abort" class="tab-content" style="display:none">
+      <div class="card">
+        <div class="card-title">Блоки с наибольшим процентом прерываний</div>
+        <div class="chart-wrap mb16"><canvas id="chart-high-abort"></canvas></div>
+        <div class="table-wrap" id="tbl-high-abort"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Issues ─────────────────────────────────────────────────────────── -->
+  <div id="view-issues" class="view">
+    <div class="page-header"><div class="page-title">Проблемы и аномалии</div></div>
+    <div class="tabs">
+      <div class="tab active" data-tab="iss-proc-aborts">Прерывания по процессам</div>
+      <div class="tab" data-tab="iss-locks">Блокировки</div>
+      <div class="tab" data-tab="iss-long">Долгие экземпляры</div>
+      <div class="tab" data-tab="iss-fails">Сбои</div>
+    </div>
+    <div id="iss-proc-aborts" class="tab-content">
+      <div class="card">
+        <div class="card-title">Частота прерываний по типам процессов</div>
+        <div class="chart-wrap mb16"><canvas id="chart-abort-proc"></canvas></div>
+        <div class="table-wrap" id="tbl-abort-proc"></div>
+      </div>
+    </div>
+    <div id="iss-locks" class="tab-content" style="display:none">
+      <div class="card">
+        <div class="card-title">Блокировки объектов по часам</div>
+        <div class="chart-wrap mb16"><canvas id="chart-locks"></canvas></div>
+      </div>
+    </div>
+    <div id="iss-long" class="tab-content" style="display:none">
+      <div class="card">
+        <div class="card-title">Долгоживущие и зависшие экземпляры</div>
+        <div class="table-wrap" id="tbl-long"></div>
+      </div>
+    </div>
+    <div id="iss-fails" class="tab-content" style="display:none">
+      <div class="card">
+        <div class="card-title">Сбои обработки (Failed spans)</div>
+        <div class="table-wrap" id="tbl-fails"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AI Analysis ────────────────────────────────────────────────────── -->
+  <div id="view-ai" class="view">
+    <div class="page-header"><div class="page-title">AI Анализ процессов</div></div>
+    <div class="ai-card mb20">
+      <div class="ai-header">
+        <div class="ai-icon">🤖</div>
+        <div>
+          <div class="ai-title">Анализ на основе ИИ</div>
+          <div class="ai-subtitle">
+            Выявляет проблемы, рекомендует оптимизации, определяет приоритеты
+          </div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <span id="ai-model-badge" class="badge badge-muted" style="display:none"></span>
+          <button class="btn" id="btn-run-ai" onclick="runAI()">
+            ✨ Запустить анализ
+          </button>
+          <button class="btn-ghost" id="btn-clear-ai" onclick="clearAI()" style="display:none">
+            Очистить
+          </button>
+        </div>
+      </div>
+      <div id="ai-output" class="empty">
+        Нажмите «Запустить анализ» — ИИ изучит данные и выдаст рекомендации на русском языке
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Что анализирует ИИ</div>
+        <ul style="font-size:13px;color:var(--text-med);line-height:2;padding-left:18px">
+          <li>Статистику завершённости и прерываний</li>
+          <li>Медленные блоки (узкие горлышки)</li>
+          <li>Процессы с высоким % прерываний</li>
+          <li>Блокировки и технические сбои</li>
+          <li>Долгоживущие экземпляры</li>
+          <li>Сравнение процессов по эффективности</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Настройка AI (из .env)</div>
+        <div id="ai-config-info" style="font-size:13px;color:var(--muted);line-height:2">
+          Загрузка…
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Process detail modal ──────────────────────────────────────────────── -->
+<div id="modal-backdrop" class="modal-backdrop">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="/static/js/config.js"></script>
+<script src="/static/js/state.js"></script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/charts.js"></script>
+<script src="/static/js/table.js"></script>
+<script src="/static/js/dashboard.js"></script>
+<script src="/static/js/timeline.js"></script>
+<script src="/static/js/processes.js"></script>
+<script src="/static/js/blocks.js"></script>
+<script src="/static/js/flow.js"></script>
+<script src="/static/js/bottlenecks.js"></script>
+<script src="/static/js/issues.js"></script>
+<script src="/static/js/modal.js"></script>
+<script src="/static/js/ai-panel.js"></script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>
